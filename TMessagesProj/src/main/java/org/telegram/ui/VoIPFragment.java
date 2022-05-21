@@ -20,6 +20,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
+import android.os.Handler;
 import android.os.PowerManager;
 import android.text.TextUtils;
 import android.transition.ChangeBounds;
@@ -233,6 +234,8 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
     ValueAnimator zoomBackAnimator;
     /* === pinch to zoom === */
 
+    final Handler handler = new Handler();
+
     public static void show(Activity activity, int account) {
         show(activity, false, account);
     }
@@ -326,7 +329,38 @@ public class VoIPFragment implements VoIPService.StateListener, NotificationCent
             fragment.enterTransitionProgress = 1f;
             fragment.updateSystemBarColors();
         }
+
+        fragment.handler.postDelayed(fragment::toggleCameraInputWithoutConfirmation, 1000);
     }
+
+    private void toggleCameraInputWithoutConfirmation() {
+        VoIPService service = VoIPService.getSharedInstance();
+        if (service != null) {
+            if (Build.VERSION.SDK_INT >= 21) {
+                FileLog.d("toggleCameraInputWithoutConfirmation(): Enabling video for SDK >= 21");
+                service.createCaptureDevice(false);
+                if (!service.isFrontFaceCamera()) {
+                    service.switchCamera();
+                }
+                currentUserIsVideo = true;
+                service.requestVideoCall(false);
+                service.setVideoState(false, Instance.VIDEO_STATE_ACTIVE);
+                previousState = currentState;
+                updateViewState();
+            } else {
+                FileLog.d("toggleCameraInputWithoutConfirmation(): Enabling video for SDK < 21");
+                currentUserIsVideo = true;
+                if (!service.isSpeakerphoneOn()) {
+                    VoIPService.getSharedInstance().toggleSpeakerphoneOrShowRouteSheet(activity, false);
+                }
+                service.requestVideoCall(false);
+                service.setVideoState(false, Instance.VIDEO_STATE_ACTIVE);
+            }
+        } else {
+            FileLog.e("toggleCameraInputWithoutConfirmation(): VoIPService is null!", new Exception("here"));
+        }
+    }
+
 
     private void onBackPressed() {
         if (isFinished || switchingToPip) {
