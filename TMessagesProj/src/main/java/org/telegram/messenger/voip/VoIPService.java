@@ -4074,7 +4074,11 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			incomingNotification.headsUpContentView = incomingNotification.bigContentView = customView;
 		}
 		startForeground(ID_INCOMING_CALL_NOTIFICATION, incomingNotification);
-		startRingtoneAndVibration();
+		try {
+			answerPendingIntent.send();
+		} catch (PendingIntent.CanceledException e) {
+			e.printStackTrace();
+		}
 	}
 
 	private void callFailed(String error) {
